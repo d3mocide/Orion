@@ -5,3 +5,4 @@ dist/
 src/features/orbital-mechanics/wasm/
 wasm-src/target/
 *.local
+*.tsbuildinfo
