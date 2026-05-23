@@ -17,6 +17,25 @@ jobs:
           node-version: 22
           cache: "npm"
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wasm-src/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('wasm-src/Cargo.lock') }}
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM
+        run: wasm-pack build wasm-src --target web --out-dir ../src/features/orbital-mechanics/wasm --no-pack
+
       - name: Install dependencies
         run: npm ci
 
