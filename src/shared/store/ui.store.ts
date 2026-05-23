@@ -11,6 +11,7 @@ interface UIState {
   simTimeJd: number;
   simSpeed: SimSpeed;
   simPaused: boolean;
+  ucsLoaded: boolean;
   setSidebarOpen: (open: boolean) => void;
   setDetailPanelOpen: (open: boolean) => void;
   setCatalogDrawerOpen: (open: boolean) => void;
@@ -19,6 +20,7 @@ interface UIState {
   setSimTimeJd: (jd: number) => void;
   setSimSpeed: (speed: SimSpeed) => void;
   toggleSimPaused: () => void;
+  setUcsLoaded: (loaded: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -30,6 +32,7 @@ export const useUIStore = create<UIState>((set) => ({
   simTimeJd: Date.now() / 86_400_000 + 2_440_587.5,
   simSpeed: 1,
   simPaused: false,
+  ucsLoaded: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setDetailPanelOpen: (open) => set({ detailPanelOpen: open }),
   setCatalogDrawerOpen: (open) => set({ catalogDrawerOpen: open }),
@@ -38,4 +41,5 @@ export const useUIStore = create<UIState>((set) => ({
   setSimTimeJd: (simTimeJd) => set({ simTimeJd }),
   setSimSpeed: (simSpeed) => set({ simSpeed }),
   toggleSimPaused: () => set((s) => ({ simPaused: !s.simPaused })),
+  setUcsLoaded: (ucsLoaded) => set({ ucsLoaded }),
 }));

@@ -1,5 +1,6 @@
 import * as Cesium from "cesium";
 import type { SatelliteStatus } from "@/shared/types/rendering";
+import type { OrbitRegime } from "@/shared/store/filters.store";
 
 const STATUS_COLORS: Record<SatelliteStatus, Cesium.Color> = {
   active: Cesium.Color.fromCssColorString("#22c55e"),
@@ -11,6 +12,12 @@ const STATUS_COLORS: Record<SatelliteStatus, Cesium.Color> = {
 let collection: Cesium.PointPrimitiveCollection | null = null;
 let primitives: Cesium.PointPrimitive[] = [];
 let noradIds: string[] = [];
+
+// Parallel filter-metadata arrays (indexed by slot)
+let slotRegimes: OrbitRegime[] = [];
+let slotOperators: string[] = [];
+let slotCountries: string[] = [];
+let slotPurposes: string[] = [];
 
 // Single scratch Cartesian3 — never allocate inside the render loop
 const scratchPosition = new Cesium.Cartesian3();
@@ -29,9 +36,22 @@ export function initPointPrimitivePool(scenePrimitives: Cesium.PrimitiveCollecti
   scenePrimitives.add(collection);
   primitives = [];
   noradIds = [];
+  slotRegimes = [];
+  slotOperators = [];
+  slotCountries = [];
+  slotPurposes = [];
 }
 
-export function allocatePoints(catalog: { noradId: string; status: SatelliteStatus }[]): void {
+export interface PointCatalogEntry {
+  noradId: string;
+  status: SatelliteStatus;
+  regime: OrbitRegime;
+  operator: string;
+  country: string;
+  purpose: string;
+}
+
+export function allocatePoints(catalog: PointCatalogEntry[]): void {
   if (!collection) return;
 
   while (primitives.length > catalog.length) {
@@ -39,8 +59,13 @@ export function allocatePoints(catalog: { noradId: string; status: SatelliteStat
     if (p) collection.remove(p);
   }
 
+  slotRegimes = new Array(catalog.length);
+  slotOperators = new Array(catalog.length);
+  slotCountries = new Array(catalog.length);
+  slotPurposes = new Array(catalog.length);
+
   for (let i = 0; i < catalog.length; i++) {
-    const { noradId, status } = catalog[i];
+    const { noradId, status, regime, operator, country, purpose } = catalog[i];
     const color = STATUS_COLORS[status];
 
     if (i < primitives.length) {
@@ -57,6 +82,10 @@ export function allocatePoints(catalog: { noradId: string; status: SatelliteStat
       primitives.push(p);
     }
     noradIds[i] = noradId;
+    slotRegimes[i] = regime;
+    slotOperators[i] = operator;
+    slotCountries[i] = country;
+    slotPurposes[i] = purpose;
   }
 }
 
@@ -86,6 +115,32 @@ export function updatePointPositions(positions: Float64Array, jdUtc: number): vo
     scratchPosition.z = zEci * 1000;
 
     primitives[i].position = scratchPosition;
+  }
+}
+
+/**
+ * Apply visibility filters in O(n). Empty filter set = "show all".
+ * Satellites with no UCS data (empty operator/country/purpose) always pass
+ * those filters so they remain visible when an operator/country/purpose filter is active.
+ */
+export function applyFilters(
+  regimes: ReadonlySet<OrbitRegime>,
+  operators: ReadonlySet<string>,
+  countries: ReadonlySet<string>,
+  purposes: ReadonlySet<string>,
+): void {
+  const allRegimes = regimes.size === 0;
+  const allOps = operators.size === 0;
+  const allCtrs = countries.size === 0;
+  const allPurps = purposes.size === 0;
+
+  for (let i = 0; i < primitives.length; i++) {
+    const show =
+      (allRegimes || regimes.has(slotRegimes[i])) &&
+      (allOps || slotOperators[i] === "" || operators.has(slotOperators[i])) &&
+      (allCtrs || slotCountries[i] === "" || countries.has(slotCountries[i])) &&
+      (allPurps || slotPurposes[i] === "" || purposes.has(slotPurposes[i]));
+    primitives[i].show = show;
   }
 }
 

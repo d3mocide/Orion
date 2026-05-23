@@ -71,3 +71,19 @@ export async function getLastFetch(key: string): Promise<number | null> {
   const meta = await db.get("metadata", key);
   return meta?.lastFetch ?? null;
 }
+
+const UCS_KEY = "ucs-snapshot";
+
+/** Read cached UCS CSV text. Returns null if not cached. */
+export async function readCachedUCS(): Promise<string | null> {
+  const db = await getDB();
+  const entry = await db.get("ucs-database", UCS_KEY);
+  if (!entry) return null;
+  return entry.data as string;
+}
+
+/** Write UCS CSV text to cache. */
+export async function writeCachedUCS(csvText: string): Promise<void> {
+  const db = await getDB();
+  await db.put("ucs-database", { key: UCS_KEY, data: csvText, fetchedAt: Date.now() });
+}
