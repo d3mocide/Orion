@@ -2,7 +2,6 @@ node_modules/
 dist/
 .env
 .env.local
-src/features/orbital-mechanics/wasm/
 wasm-src/target/
 *.local
 *.tsbuildinfo
