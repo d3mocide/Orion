@@ -104,7 +104,7 @@ export class OrionSceneManager {
 
     // Earth (rotating ECEF group)
     const loader = new THREE.TextureLoader();
-    this.earth = createEarth(loader);
+    this.earth = createEarth(loader, this.renderer.capabilities.getMaxAnisotropy());
     this.scene.add(this.earth.group);
 
     // Deep sky
