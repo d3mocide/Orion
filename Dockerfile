@@ -8,16 +8,16 @@ RUN rustup target add wasm32-unknown-unknown \
 
 # ── Stage 2: Node → static bundle ─────────────────────────────────────────────
 FROM node:22-alpine AS web-builder
-WORKDIR /app
-COPY package*.json ./
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
 RUN npm ci
-COPY . .
+COPY frontend/ ./
 COPY --from=wasm-builder /app/wasm-out ./src/features/orbital-mechanics/wasm
 RUN npm run build
 
 # ── Stage 3: nginx (single runtime container) ─────────────────────────────────
 FROM nginx:1.27-alpine AS runner
-COPY --from=web-builder /app/dist /usr/share/nginx/html
+COPY --from=web-builder /app/frontend/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

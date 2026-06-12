@@ -2,10 +2,11 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      glob: "*.{ts,tsx}"
-      run: npx eslint {staged_files}
+      glob: "frontend/src/**/*.{ts,tsx}"
+      run: npx.cmd --prefix frontend eslint --config frontend/eslint.config.js --no-warn-ignored {staged_files}
     format:
-      glob: "*.{ts,tsx,css}"
-      run: npx prettier --check {staged_files}
+      glob: "frontend/src/**/*.{ts,tsx,css}"
+      run: npx.cmd --prefix frontend prettier --check {staged_files}
     typecheck:
-      run: npm run typecheck
+      root: "frontend/"
+      run: npm.cmd run typecheck

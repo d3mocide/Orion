@@ -9,7 +9,7 @@
 import { fetchWithRetry } from "@/shared/utils/fetchRetry";
 import { readCachedTransmitters, writeCachedTransmitters } from "../cache/indexeddb";
 
-const SATNOGS_BASE = "https://db.satnogs.org/api/transmitters/";
+const SATNOGS_BASE = "/api/satnogs/transmitters/";
 
 export interface Transmitter {
   uuid: string;

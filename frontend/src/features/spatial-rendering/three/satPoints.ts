@@ -171,7 +171,8 @@ export function updatePointPositions(positions: Float64Array): void {
   const n = Math.min(count, Math.floor(positions.length / 3));
 
   for (let i = 0; i < n * 3; i++) {
-    out[i] = positions[i] * KM_TO_UNITS;
+    const val = positions[i] * KM_TO_UNITS;
+    out[i] = Number.isFinite(val) ? val : 0.0;
   }
   posAttr.needsUpdate = true;
 }

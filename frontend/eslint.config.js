@@ -6,11 +6,11 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 export default defineConfig([
   {
-    ignores: ["dist/**", "src/features/orbital-mechanics/wasm/**"],
+    ignores: ["dist/**", "src/features/orbital-mechanics/wasm/**", "frontend/dist/**", "frontend/src/features/orbital-mechanics/wasm/**"],
   },
   // Config files: type-check-free, basic TS rules only
   {
-    files: ["*.config.ts", "*.config.js", "scripts/**/*.ts"],
+    files: ["*.config.ts", "*.config.js", "scripts/**/*.ts", "frontend/*.config.ts", "frontend/*.config.js"],
     languageOptions: {
       parser: tsParser,
       parserOptions: { project: null },
@@ -22,7 +22,7 @@ export default defineConfig([
   },
   // Source files: full typed linting
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "frontend/src/**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

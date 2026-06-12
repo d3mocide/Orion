@@ -20,7 +20,18 @@ export default defineConfig({
     target: "esnext",
     chunkSizeWarningLimit: 5000,
   },
-  optimizeDeps: {
-    exclude: ["src/features/orbital-mechanics/wasm"],
+  server: {
+    proxy: {
+      "/api/satnogs": {
+        target: "https://db.satnogs.org/api",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/satnogs/, ""),
+      },
+      "/api/celestrak": {
+        target: "https://celestrak.org/NORAD/elements/gp.php",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/celestrak/, ""),
+      },
+    },
   },
 });

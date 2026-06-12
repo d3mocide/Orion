@@ -1,7 +1,7 @@
 import type { OMMRecord, OMMGroup } from "@/shared/types/omm";
 import { fetchWithRetry } from "@/shared/utils/fetchRetry";
 
-const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/gp.php";
+const CELESTRAK_BASE = "/api/celestrak";
 const RATE_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 const lastFetchTime = new Map<OMMGroup, number>();
