@@ -18,6 +18,15 @@ body,
   font-family: "Space Grotesk Variable", system-ui, sans-serif;
 }
 
+/* Mobile browsers: track the *dynamic* viewport so the UI isn't hidden
+   behind (or jumps with) the collapsing address bar */
+@supports (height: 100dvh) {
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
 /* ── Spectral-black glass surfaces ─────────────────────────────────────── */
 .glass-panel {
   background: linear-gradient(165deg, rgba(20, 20, 22, 0.62), rgba(7, 7, 9, 0.72));
@@ -27,6 +36,19 @@ body,
     0 16px 48px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(22px) saturate(120%);
   -webkit-backdrop-filter: blur(22px) saturate(120%);
+  /* Promote to a compositor layer: backdrop-filter sampled directly over an
+     accelerated WebGL canvas flickers on some Chromium/Safari + GPU combos */
+  transform: translateZ(0);
+}
+
+/* Phones: lighter blur — large blurred sheets over a full-screen WebGL
+   canvas are expensive and prone to compositor glitches on mobile GPUs */
+@media (max-width: 767px) {
+  .glass-panel {
+    background: linear-gradient(165deg, rgba(20, 20, 22, 0.84), rgba(7, 7, 9, 0.9));
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+  }
 }
 
 @layer components {

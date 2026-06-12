@@ -33,7 +33,7 @@ function SearchBox({ rows }: { rows: SearchRow[] }) {
   }, [query, rows]);
 
   return (
-    <div className="relative w-60">
+    <div className="relative w-full min-w-0 flex-1 md:w-60 md:flex-none">
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -72,6 +72,8 @@ function SearchBox({ rows }: { rows: SearchRow[] }) {
 function TimeSetter({ onClose }: { onClose: () => void }) {
   const simTimeJd = useUIStore((s) => s.simTimeJd);
   const setSimTimeJd = useUIStore((s) => s.setSimTimeJd);
+  const simSpeed = useUIStore((s) => s.simSpeed);
+  const setSimSpeed = useUIStore((s) => s.setSimSpeed);
   const [value, setValue] = useState(jdToIso(simTimeJd).slice(0, 19));
 
   const apply = () => {
@@ -94,6 +96,27 @@ function TimeSetter({ onClose }: { onClose: () => void }) {
       />
       <div className="mb-2 font-mono text-[10px] text-zinc-600">
         Unix epoch: {Math.floor(jdToDate(simTimeJd).getTime() / 1000)}
+      </div>
+      {/* Speed controls live inline on desktop; on phones they fit here */}
+      <div className="mb-2 flex gap-1.5 md:hidden">
+        {SPEEDS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSimSpeed(s)}
+            className={`flex-1 px-2 py-1 text-xs ${simSpeed === s ? "chip chip-active" : "chip"}`}
+          >
+            ×{s}
+          </button>
+        ))}
+        <button
+          onClick={() => {
+            setSimTimeJd(nowJd());
+            onClose();
+          }}
+          className="chip flex-1 px-2 py-1 text-xs"
+        >
+          NOW
+        </button>
       </div>
       <div className="flex gap-2">
         <button onClick={apply} className="chip chip-active flex-1 px-2 py-1 text-[11px]">
@@ -120,38 +143,41 @@ export function TopBar({ searchRows }: TopBarProps) {
   const setCatalogDrawerOpen = useUIStore((s) => s.setCatalogDrawerOpen);
   const [timeSetterOpen, setTimeSetterOpen] = useState(false);
 
+  const iso = jdToIso(simTimeJd);
+
   return (
-    <header className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-start gap-2 p-3">
-      <div className="glass-panel pointer-events-auto flex items-center gap-4 rounded-lg px-4 py-2">
+    <header className="pointer-events-none z-30 flex flex-wrap items-start gap-2">
+      <div className="glass-panel pointer-events-auto flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 sm:flex-none sm:gap-4 sm:px-4">
         <span className="select-none text-sm font-semibold tracking-[0.32em] text-zinc-100">
           ORION
         </span>
-        <div className="h-4 w-px bg-white/10" />
+        <div className="hidden h-4 w-px bg-white/10 md:block" />
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`text-xs transition-colors ${sidebarOpen ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
+          className={`hidden text-xs transition-colors md:block ${sidebarOpen ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
         >
           Mission
         </button>
         <button
           onClick={() => setCatalogDrawerOpen(!catalogDrawerOpen)}
-          className={`text-xs transition-colors ${catalogDrawerOpen ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
+          className={`hidden text-xs transition-colors md:block ${catalogDrawerOpen ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
         >
           Catalog
         </button>
         <SearchBox rows={searchRows} />
       </div>
 
-      <div className="flex-1" />
+      <div className="hidden flex-1 md:block" />
 
       <div className="glass-panel pointer-events-auto relative flex items-center gap-2 rounded-lg px-3 py-2">
         <button
           onClick={() => setTimeSetterOpen(!timeSetterOpen)}
           title="Set date & time"
-          className="font-mono text-xs text-zinc-300 transition-colors hover:text-zinc-100"
+          className="whitespace-nowrap font-mono text-xs text-zinc-300 transition-colors hover:text-zinc-100"
           data-testid="sim-clock"
         >
-          {jdToIso(simTimeJd).replace("T", " ").slice(0, 19)} UTC
+          <span className="hidden md:inline">{iso.slice(0, 10)} </span>
+          {iso.slice(11, 19)} UTC
         </button>
         <div className="h-4 w-px bg-white/10" />
         <button
@@ -161,22 +187,24 @@ export function TopBar({ searchRows }: TopBarProps) {
         >
           {simPaused ? "▶" : "⏸"}
         </button>
-        {SPEEDS.map((s) => (
+        <div className="hidden items-center gap-2 md:flex">
+          {SPEEDS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setSimSpeed(s)}
+              className={`px-2 py-0.5 text-xs ${simSpeed === s ? "chip chip-active" : "chip"}`}
+            >
+              ×{s}
+            </button>
+          ))}
           <button
-            key={s}
-            onClick={() => setSimSpeed(s)}
-            className={`px-2 py-0.5 text-xs ${simSpeed === s ? "chip chip-active" : "chip"}`}
+            onClick={() => setSimTimeJd(nowJd())}
+            title="Jump to real time"
+            className="chip px-2 py-0.5 text-xs"
           >
-            ×{s}
+            NOW
           </button>
-        ))}
-        <button
-          onClick={() => setSimTimeJd(nowJd())}
-          title="Jump to real time"
-          className="chip px-2 py-0.5 text-xs"
-        >
-          NOW
-        </button>
+        </div>
         {timeSetterOpen && <TimeSetter onClose={() => setTimeSetterOpen(false)} />}
       </div>
     </header>

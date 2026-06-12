@@ -31,20 +31,20 @@ export function VirtualizedCatalogTable({ rows }: VirtualizedCatalogTableProps) 
   if (!open) return null;
 
   return (
-    <div className="glass-panel absolute bottom-14 left-3 right-3 z-20 h-52 overflow-hidden rounded-lg">
-      <div className="flex h-8 items-center border-b border-white/[0.07] px-4">
+    <div className="glass-panel pointer-events-auto z-20 flex h-52 shrink-0 flex-col overflow-hidden rounded-lg max-md:h-[42dvh]">
+      <div className="flex h-8 shrink-0 items-center border-b border-white/[0.07] px-4">
         <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
           Catalog · {rows.length.toLocaleString()} objects
         </span>
       </div>
 
-      <div className="grid grid-cols-[90px_1fr_90px] border-b border-white/[0.04] px-4 py-1 text-[10px] uppercase tracking-wider text-zinc-600">
+      <div className="grid shrink-0 grid-cols-[90px_1fr_90px] border-b border-white/[0.04] px-4 py-1 text-[10px] uppercase tracking-wider text-zinc-600">
         <span>NORAD</span>
         <span>Name</span>
         <span>Epoch</span>
       </div>
 
-      <div ref={parentRef} className="overflow-y-auto" style={{ height: 148 }}>
+      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto">
         <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
           {rowVirtualizer.getVirtualItems().map((vItem) => {
             const row = rows[vItem.index];

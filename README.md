@@ -156,4 +156,4 @@ The [UCS Satellite Database](https://www.ucsusa.org/resources/satellite-database
 
 MIT © d3mocide
 
-Earth/moon textures derived from NASA imagery via the [three.js examples](https://github.com/mrdoob/three.js) (public domain sources).
+Base 2K Earth/moon textures derived from NASA imagery via the [three.js examples](https://github.com/mrdoob/three.js) (public domain sources). High-resolution Earth maps (8K day/night, 4K clouds/normal/specular) from [Solar System Scope](https://www.solarsystemscope.com/textures/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), based on NASA Blue Marble imagery.

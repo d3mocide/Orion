@@ -65,6 +65,13 @@ let slotOperators: string[] = [];
 let slotCountries: string[] = [];
 let slotPurposes: string[] = [];
 let visibleFlags: Float32Array = new Float32Array(0);
+let pixelRatio = 1;
+
+/** Keep gl_PointSize in device pixels in sync with the renderer's pixel ratio. */
+export function setPointsPixelRatio(pr: number): void {
+  pixelRatio = pr;
+  if (material) material.uniforms.uPixelRatio.value = pr;
+}
 
 export function initSatPoints(scene: THREE.Scene): void {
   disposeSatPoints();
@@ -115,7 +122,7 @@ function ensureCapacity(n: number): void {
 
   if (!material) {
     material = new THREE.ShaderMaterial({
-      uniforms: { uPixelRatio: { value: window.devicePixelRatio || 1 } },
+      uniforms: { uPixelRatio: { value: pixelRatio } },
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
