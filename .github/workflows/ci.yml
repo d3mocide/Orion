@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
   pull_request:
     branches: [main]
+
+# A PR branch used to trigger both a push run and a pull_request run; the two
+# docker jobs then raced pushing identical blobs/tags to GHCR, which fails
+# with "unknown blob". One trigger per commit = one pusher.
 
 jobs:
   ci:
