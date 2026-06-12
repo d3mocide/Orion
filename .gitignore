@@ -5,3 +5,6 @@ dist/
 wasm-src/target/
 *.local
 *.tsbuildinfo
+
+test-results/
+playwright-report/

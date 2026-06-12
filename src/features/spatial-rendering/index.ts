@@ -1,8 +1,11 @@
-export { CesiumGlobe } from "./cesium/CesiumGlobe";
+export { OrionScene } from "./three/OrionScene";
+export { OrionSceneManager } from "./three/sceneManager";
 export {
-  initPointPrimitivePool,
   allocatePoints,
   updatePointPositions,
-  setPointVisibility,
-} from "./cesium/pointPrimitivePool";
-export { createDeckOverlay } from "./deckgl/overlay";
+  applyFilters,
+  pickSatellite,
+  getNoradIds,
+  getEciAtIndex,
+} from "./three/satPoints";
+export { KM_TO_UNITS, REGIME_COLORS, REGIME_COLORS_CSS } from "./three/constants";

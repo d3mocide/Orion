@@ -1,13 +1,17 @@
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --space-bg: #0a0e1a;
-  --space-surface: #0f1629;
-  --space-border: #1e2d4a;
-  --space-accent: #00d4ff;
-  --panel-blur: 12px;
+  --void: #01020a;
+  --aurora-teal: #2dd4bf;
+  --aurora-violet: #a78bfa;
+  --aurora-magenta: #f472b6;
+  --aurora-amber: #fbbf24;
 }
 
 html,
@@ -18,16 +22,38 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: var(--void);
+  font-family: "Space Grotesk Variable", system-ui, sans-serif;
 }
 
-/* Cesium canvas must fill its container */
-.cesium-widget,
-.cesium-widget canvas {
-  width: 100% !important;
-  height: 100% !important;
+@layer components {
+  /* Frosted glass surface used by every floating panel */
+  .glass-panel {
+    @apply border border-white/10 bg-slate-950/60 shadow-[0_8px_32px_rgba(1,2,10,0.6)] backdrop-blur-xl;
+  }
+
+  /* Aurora gradient text for the wordmark and accents */
+  .aurora-text {
+    background: linear-gradient(100deg, #2dd4bf 0%, #a78bfa 55%, #f472b6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
-/* Suppress default Cesium credit overlay — we render it ourselves */
-.cesium-credit-container {
-  display: none !important;
+/* Slim, dark scrollbars everywhere */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.35) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.35);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }

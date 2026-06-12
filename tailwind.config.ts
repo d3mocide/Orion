@@ -6,16 +6,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        space: {
-          bg: "#0a0e1a",
-          surface: "#0f1629",
-          border: "#1e2d4a",
-          accent: "#00d4ff",
-          amber: "#f59e0b",
-          green: "#22c55e",
-          red: "#ef4444",
-          yellow: "#eab308",
+        void: "#01020a",
+        aurora: {
+          teal: "#2dd4bf",
+          violet: "#a78bfa",
+          magenta: "#f472b6",
+          amber: "#fbbf24",
         },
+      },
+      fontFamily: {
+        display: ['"Space Grotesk Variable"', "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       backdropBlur: {
         xs: "2px",

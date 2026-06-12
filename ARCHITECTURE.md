@@ -1,6 +1,6 @@
 # Architecture & Technical Decisions
 
-This document records the key design decisions in Orion, the rationale behind each, and the constraints they impose on future development. Violating these decisions typically results in correctness bugs, frame-rate regressions, or memory bloat at 10k-object scale.
+This document records the key design decisions in Orion, the rationale behind each, and the constraints they impose. Violating these decisions typically results in correctness bugs, frame-rate regressions, or memory bloat at 10k-object scale.
 
 ---
 
@@ -10,95 +10,81 @@ This document records the key design decisions in Orion, the rationale behind ea
 
 **Rationale:**
 
-- OMM is the CCSDS standard for mean orbital elements. CelesTrak natively exports OMM JSON at the same endpoint that formerly served TLE; no custom line-oriented parser is required.
-- TLE NORAD catalog numbers are 5-digit integers (max 99,999). The catalog is projected to exhaust that namespace in **July 2026**. CelesTrak's OMM JSON already uses 9-digit NORAD IDs (`NORAD_CAT_ID` field) in preparation. A TLE parser built today would be invalid in under a year.
-- The Rust `sgp4` crate accepts `sgp4::Elements` deserialized directly from OMM JSON fields via `serde`. No intermediate string-parsing step is needed.
-- OMM fields map 1-to-1 with SGP4 `Elements` struct fields; TLE requires character-position extraction and checksum validation.
+- OMM is the CCSDS standard for mean orbital elements. CelesTrak natively exports OMM JSON at the same endpoint that formerly served TLE.
+- TLE NORAD catalog numbers are 5-digit integers (max 99,999); the catalog is projected to exhaust that namespace. CelesTrak's OMM JSON already uses 9-digit NORAD IDs. `NORAD_CAT_ID` is treated as an **opaque string** everywhere.
+- The Rust `sgp4` crate deserializes `sgp4::Elements` directly from OMM JSON fields via `serde` — no intermediate parsing.
 
-**Constraint:** Do not add a TLE ingestion path. If a source only provides TLE, convert it to OMM JSON using the CelesTrak conversion API before storage.
+**Constraint:** Do not add a TLE ingestion path. If a source only provides TLE, convert it to OMM JSON before storage.
 
 ---
 
-## C2 — PointPrimitiveCollection over Entity API
+## C2 — One `THREE.Points` Draw Call for the Catalog
 
-**Decision:** All satellite objects are rendered as `PointPrimitive` instances inside a single `PointPrimitiveCollection`. The Cesium Entity API is never used.
+**Decision:** The entire satellite cloud is a single `THREE.Points` object with a custom `ShaderMaterial`. Per-satellite scene-graph nodes are never created.
 
 **Rationale:**
 
-Cesium's Entity API is designed for interactive scenes with a small number of objects. At 10k objects it has two fatal performance characteristics:
+- 10k `Object3D` instances would mean 10k matrix updates and draw calls per frame. One `Points` geometry batches everything into a single instanced draw.
+- Visibility filtering writes a per-vertex `aVisible` attribute (hidden points get `gl_PointSize = 0`) — toggling filters is an O(n) typed-array write with no geometry rebuild and no GPU reallocation.
+- Per-vertex `aColor` encodes orbit regime; the fragment shader renders a soft-glow disc that feeds the bloom pass.
+- Picking is screen-space: project visible points on (debounced) pointer events and select the nearest within a pixel threshold. O(n) per *event*, never per frame.
 
-1. **Per-read cloning:** `entity.position.getValue()` returns a new `Cartesian3` on every call — 600,000 allocations/second at 10k × 60 FPS, saturating the GC.
-2. **CallbackProperty overhead:** Anything updated per-frame must use `CallbackProperty`, which is invoked inside Cesium's property system on every frame for every entity.
-
-`PointPrimitive.position` accepts a `Cartesian3` written in-place using a single scratch instance. **Zero per-frame heap allocations.** The entire collection is batched into one GPU draw call.
-
-**Constraint:** Do not use `viewer.entities`, `Entity`, `EntityCollection`, or `CallbackProperty`. Orbit tracks use the deck.gl overlay, not Cesium `Polyline`.
+**Constraint:** Do not add per-satellite meshes/sprites. Selection/hover affordances are separate singleton objects (one marker sprite, one track line), not per-satellite children.
 
 ---
 
 ## C3 — Rust/WASM SGP4 over a JS Implementation
 
-**Decision:** SGP4 propagation runs inside a Rust WebAssembly module compiled from `wasm-src/` using the `sgp4` crate.
+**Decision:** SGP4 propagation runs inside a Rust WebAssembly module compiled from `wasm-src/` using the `sgp4` crate, inside a Web Worker.
 
 **Rationale:**
 
-- Pure-JavaScript SGP4 implementations run 3–5× slower than the Rust WASM equivalent at 10k objects. The 16ms frame budget cannot be met in JS.
-- The Rust `sgp4` crate is formally verified against the reference implementation test vectors.
-- Running propagation in a Web Worker keeps the main thread free for Cesium rendering.
-- WASM linear memory allows batch processing: all positions are written into a pre-allocated `Float64Array` buffer without intermediate JS objects.
+- Pure-JS SGP4 runs 3–5× slower at 10k objects; the frame budget cannot absorb it.
+- The Rust `sgp4` crate is verified against the reference test vectors.
+- The worker keeps the main thread free for rendering; WASM linear memory allows batch output into a single `Float64Array`.
 
 **Build:**
 ```bash
 wasm-pack build wasm-src --target web \
-  --out-dir src/features/orbital-mechanics/wasm \
-  --no-pack
+  --out-dir ../src/features/orbital-mechanics/wasm --no-pack
 ```
 
-**Constraint:** SGP4 must not be called on the main thread. All propagation goes through the Comlink worker interface.
+**Constraints:**
+- SGP4 must not be called on the main thread. All propagation goes through the Comlink worker interface.
+- WASM functions must return JS-owned arrays via the **safe copy** `js_sys::Float64Array::from(&buf[..])`. The `view()`+`buffer().slice()` pattern is forbidden: it throws on zero-length buffers, and a JS exception thrown mid-`RefCell` borrow skips Rust destructors, permanently poisoning the catalog (`BorrowError` on every later call).
 
 ---
 
 ## C4 — Comlink + Transferable ArrayBuffer
 
-**Decision:** The WASM worker is wrapped with Comlink for type-safe RPC. Propagation results are returned as a `Float64Array` whose `ArrayBuffer` is transferred (not copied) to the main thread.
+**Decision:** The WASM worker is wrapped with Comlink. Propagation results cross threads as `Float64Array` buffers, never as JSON.
 
 **Rationale:**
 
-- `postMessage` with a plain object or `JSON.stringify` would serialize 10k × 3 Float64 coordinates = 240 kB as UTF-8 on every frame: ~14 MB/s of encoding overhead at 60 FPS.
-- `ArrayBuffer` transfer via the `Transferable` mechanism moves ownership in O(1). The buffer is immediately available on the main thread as a `Float64Array` view with zero copy.
-- Comlink wraps worker functions in a `Proxy` returning `Promise`-based RPC calls, providing TypeScript type safety with no manual `onmessage`/`postMessage` dispatch.
+- JSON-serializing 10k×3 floats per tick would cost ~14 MB/s of encoding overhead.
+- `ArrayBuffer` transfer moves ownership in O(1); Comlink provides typed RPC without manual `postMessage` dispatch.
 
-**Pattern:**
-```typescript
-// Worker side
-async propagateAt(jdUtc: number): Promise<ArrayBuffer> {
-  const positions = wasm.propagate_at_jd(jdUtc);
-  return positions.slice().buffer; // slice() copies out of WASM memory; .buffer is Transferable
-}
-```
-
-**Constraint:** Never `JSON.stringify` propagation results. The `.slice().buffer` pattern is intentional — the original `Float64Array` view borrows from WASM linear memory and must not be transferred directly.
+**Constraints:**
+- Never `JSON.stringify` propagation results.
+- A Comlink proxy is **function-typed**. Storing one in React state requires the updater form — `setPropagator(() => api)` — otherwise React invokes the proxy as a state-updater function and stores a garbage promise. (This exact bug shipped once.)
 
 ---
 
-## C5 — ECI→ECEF Rotation via GMST
+## C5 — ECI World Frame; the Earth Rotates Instead
 
-**Decision:** Satellite positions from SGP4 (ECI frame) are rotated to ECEF in the main-thread render loop using Greenwich Mean Sidereal Time (GMST).
+**Decision:** The Three.js world frame is z-up ECI, scaled 1 unit = 1000 km. SGP4 output is copied into the GPU position buffer **unmodified**. The Earth/clouds/ground-station group rotates by GMST (`group.rotation.z = θ_GMST`); satellites, stars, sun, and moon are never rotated.
 
-**Formula:**
 ```
 θ_GMST [deg] = 280.46061837 + 360.98564736629 × (JD − 2451545.0)
-
-x_ECEF =  x_ECI · cos(θ) + y_ECI · sin(θ)
-y_ECEF = −x_ECI · sin(θ) + y_ECI · cos(θ)
-z_ECEF =  z_ECI
 ```
 
 **Rationale:**
 
-- SGP4 outputs ECI positions. CesiumJS `Cartesian3` expects ECEF. Direct assignment of ECI coordinates produces a slowly rotating positional error (up to 400 km at mid-latitudes).
-- The IAU2006 precession-nutation correction adds < 100 m at visual display scales. GMST is sufficient.
-- GMST is computed **once per frame** (two trig calls), not per satellite, so cost is O(1) regardless of catalog size.
+- The previous design rotated every satellite ECI→ECEF per frame (10k×2 trig + 4 mul). Rotating the one object that is actually Earth-fixed — the Earth — costs a single rotation and is *more* correct: stars genuinely don't rotate with Earth, and orbit tracks are clean closed curves in ECI.
+- GMST precision (vs. full IAU2006) errs < 100 m at visual scales.
+- Anything tied to the ground (observer marker, future ground tracks) is parented inside the Earth group and positioned in plain ECEF.
+
+**Constraint:** Never write ECEF coordinates into the satellite position buffer. Ground-fixed objects go inside the Earth group; free-flying objects go in the scene root in ECI.
 
 ---
 
@@ -108,62 +94,49 @@ z_ECEF =  z_ECI
 
 **Rationale:**
 
-- React state subscriptions trigger re-renders. A re-render of the Cesium parent component would destroy and recreate the `PointPrimitiveCollection`, resetting GPU state.
-- `requestAnimationFrame` callbacks run outside React's scheduler. Using hooks inside `rAF` violates the Rules of Hooks.
-- `zustandStore.getState()` is a synchronous, zero-subscription snapshot read. The rAF loop calls it each frame without ever registering a listener.
+- React subscriptions trigger re-renders; a re-render of the scene's parent would tear down the WebGL context.
+- `getState()` is a synchronous, zero-subscription snapshot read, safe inside `requestAnimationFrame`.
 
-**Pattern:**
-```typescript
-// Inside rAF callback — no hooks, no subscriptions
-const { simSpeed, simPaused } = useUIStore.getState();
-if (!simPaused) simJd += (wallDelta * simSpeed) / 86400;
-```
+**Pattern:** The propagation loop is additionally **decoupled from the frame loop**: rendering runs at display refresh, while `propagateAt` requests are issued only when the previous one resolves. Camera and Earth-spin stay at 60 FPS even if the worker delivers at 10 Hz.
 
 ---
 
-## C7 — deck.gl GlobeView for Orbit Track
+## C7 — Pass Prediction Reuses the Propagator's Sample Buffers
 
-**Decision:** Selected-satellite orbit tracks are rendered as deck.gl `LineLayer` instances using `GlobeView`, composited as a transparent canvas overlay on the Cesium canvas.
+**Decision:** Pass prediction (`src/features/ground-station/`) consumes the same `propagateRange` ECI buffers the orbit track uses. The TS side does only geometry: GMST rotation → topocentric ENU → az/el, then a linear scan for horizon crossings with interpolated AOS/LOS.
 
 **Rationale:**
 
-- Cesium `PolylineCollection` submits a separate draw call per polyline. deck.gl `LineLayer` batches all segments into one instanced draw call.
-- `GlobeView` uses a WGS-84 sphere coordinate system compatible with ECI→ECEF positions computed for Cesium.
-- The transparent canvas overlay pattern (two stacked `<canvas>` elements) keeps Cesium's internal WebGL context unmodified.
-
-**Camera sync:** Each frame the render loop calls `overlay.syncCamera(viewer.camera)`, converting Cesium's geodetic camera position and heading/pitch to deck.gl `GlobeView` viewState. Synchronization is approximate (sufficient for visual track alignment).
+- Keeps every SGP4 evaluation in the WASM worker (C3); pass search adds no propagation code paths.
+- 30 s sampling with linear AOS/LOS interpolation gives a few seconds of timing accuracy — sufficient for VHF/UHF amateur work — at ~2,880 samples per 24 h scan.
 
 ---
 
 ## C8 — IndexedDB Stale-While-Revalidate
 
-**Decision:** OMM JSON from CelesTrak is cached in IndexedDB via the `idb` library with a 2-hour staleness window using a stale-while-revalidate strategy.
+**Decision:** OMM JSON is cached in IndexedDB with a 2-hour staleness window (CelesTrak's rate limit); SatNOGS transmitter records use a 24-hour window. Reads resolve immediately even when stale; revalidation happens in the background.
 
-**Rationale:**
-
-- CelesTrak rate-limits clients to one catalog fetch per 2 hours. Fetching on every page load would exhaust the quota.
-- IndexedDB resolves in < 5 ms for 10k records; network fetch takes 1–3 seconds. Serving stale data immediately eliminates blank-globe FOUC.
-- Background revalidation fetches new data after the page is interactive, writes to IndexedDB, and updates in-memory state without a reload.
-
-**SWR flow:**
-```
-1. Read IndexedDB → resolve immediately (even if stale)
-2. If age > 2h → background fetch from CelesTrak
-3. On fetch success → write IndexedDB + update render loop
-4. On fetch failure → keep serving stale data
-```
+**Demo fallback:** When the cache is empty *and* CelesTrak is unreachable, `buildDemoCatalog()` synthesizes ~1,000 physically plausible OMM records (epoch = now, NORAD IDs in the 900xxx analyst range) so the app boots offline. Demo data is never written to the cache, and the status bar shows `DEMO DATA`.
 
 ---
 
 ## Directory Layout
 
-The project uses a **feature-driven** layout. Each feature owns its types, components, workers, and tests:
+Feature-driven layout; each feature owns its types, components, workers, and tests:
 
 ```
 src/features/<feature>/
   index.ts        # Public API surface (re-exports only)
   *.ts / *.tsx    # Implementation
   __tests__/      # Co-located unit tests
+
+src/features/
+  spatial-rendering/three/   # scene manager, earth, satPoints, starfield, orbit track
+  orbital-mechanics/         # WASM worker + propagator API
+  telemetry-ingestion/       # CelesTrak, SatNOGS, IndexedDB cache, demo catalog
+  ground-station/            # pass prediction
+  osint-intelligence/        # UCS database enrichment
+  ui-shell/                  # TopBar, Sidebar, detail panel, catalog table, status bar
 ```
 
-`src/shared/` holds only things with no feature affiliation: Zustand stores, shared TypeScript interfaces, and time utilities. There are no top-level `components/`, `hooks/`, or `services/` directories.
+`src/shared/` holds Zustand stores, shared types, and time/astro utilities (`astro.ts`: GMST, frame transforms, sun/moon ephemerides, look angles). There are no top-level `components/`, `hooks/`, or `services/` directories.

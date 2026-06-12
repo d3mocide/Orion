@@ -1,6 +1,8 @@
 import { create } from "zustand";
+import type { OMMGroup } from "@/shared/types/omm";
 
 export type SimSpeed = 1 | 10 | 60 | 600;
+export type DataSource = "live" | "cache" | "demo" | "loading";
 
 interface UIState {
   sidebarOpen: boolean;
@@ -12,6 +14,10 @@ interface UIState {
   simSpeed: SimSpeed;
   simPaused: boolean;
   ucsLoaded: boolean;
+  group: OMMGroup;
+  dataSource: DataSource;
+  setGroup: (group: OMMGroup) => void;
+  setDataSource: (src: DataSource) => void;
   setSidebarOpen: (open: boolean) => void;
   setDetailPanelOpen: (open: boolean) => void;
   setCatalogDrawerOpen: (open: boolean) => void;
@@ -33,6 +39,10 @@ export const useUIStore = create<UIState>((set) => ({
   simSpeed: 1,
   simPaused: false,
   ucsLoaded: false,
+  group: "active",
+  dataSource: "loading",
+  setGroup: (group) => set({ group }),
+  setDataSource: (dataSource) => set({ dataSource }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setDetailPanelOpen: (open) => set({ detailPanelOpen: open }),
   setCatalogDrawerOpen: (open) => set({ catalogDrawerOpen: open }),
