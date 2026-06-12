@@ -1,9 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { OMMRecord, OMMGroup } from "@/shared/types/omm";
+import type { Transmitter } from "../clients/satnogs";
 
 const DB_NAME = "space-tracking-cache";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
+const TRANSMITTER_STALE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface SpaceTrackingDB extends DBSchema {
   "omm-data": {
@@ -13,6 +15,10 @@ interface SpaceTrackingDB extends DBSchema {
   "ucs-database": {
     key: string; // "ucs-snapshot"
     value: { key: string; data: unknown; fetchedAt: number };
+  };
+  transmitters: {
+    key: string; // NORAD ID
+    value: { noradId: string; transmitters: Transmitter[]; fetchedAt: number };
   };
   metadata: {
     key: string; // source identifier
@@ -36,6 +42,9 @@ function getDB(): Promise<SpaceDB> {
         }
         if (!db.objectStoreNames.contains("metadata")) {
           db.createObjectStore("metadata", { keyPath: "key" });
+        }
+        if (!db.objectStoreNames.contains("transmitters")) {
+          db.createObjectStore("transmitters", { keyPath: "noradId" });
         }
       },
     });
@@ -70,6 +79,24 @@ export async function getLastFetch(key: string): Promise<number | null> {
   const db = await getDB();
   const meta = await db.get("metadata", key);
   return meta?.lastFetch ?? null;
+}
+
+/** Read cached transmitters for a NORAD ID. Returns null if missing or older than 24h. */
+export async function readCachedTransmitters(noradId: string): Promise<Transmitter[] | null> {
+  const db = await getDB();
+  const entry = await db.get("transmitters", noradId);
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > TRANSMITTER_STALE_MS) return null;
+  return entry.transmitters;
+}
+
+/** Write transmitters for a NORAD ID to cache. */
+export async function writeCachedTransmitters(
+  noradId: string,
+  transmitters: Transmitter[],
+): Promise<void> {
+  const db = await getDB();
+  await db.put("transmitters", { noradId, transmitters, fetchedAt: Date.now() });
 }
 
 const UCS_KEY = "ucs-snapshot";

@@ -11,6 +11,8 @@ export default defineConfig({
     headless: true,
     // Enable software WebGL in headless Chromium
     launchOptions: {
+      // Allow overriding the browser binary (e.g. sandboxes with a preinstalled build)
+      executablePath: process.env["PLAYWRIGHT_CHROMIUM_PATH"] || undefined,
       args: [
         "--use-gl=angle",
         "--enable-webgl",

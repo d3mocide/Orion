@@ -1,6 +1,7 @@
 import type { OMMGroup, OMMRecord } from "@/shared/types/omm";
 import { fetchOMMGroup, RateLimitError } from "./clients/celestrak";
 import { readCachedOMM, writeCachedOMM, isOMMStale } from "./cache/indexeddb";
+import { buildDemoCatalog } from "./demo/demoCatalog";
 
 export { RateLimitError };
 export type { OMMRecord, OMMGroup };
@@ -9,6 +10,8 @@ export interface IngestionResult {
   group: OMMGroup;
   records: OMMRecord[];
   fromCache: boolean;
+  /** True when CelesTrak was unreachable and a synthetic demo catalog was substituted */
+  demo?: boolean;
 }
 
 /**
@@ -33,9 +36,19 @@ export async function bootstrapGroup(
   }
 
   // Cold start: must fetch before we can render
-  const records = await fetchOMMGroup(group, { bypassRateLimit: true });
-  await writeCachedOMM(group, records);
-  return { group, records, fromCache: false };
+  try {
+    const records = await fetchOMMGroup(group, { bypassRateLimit: true });
+    await writeCachedOMM(group, records);
+    return { group, records, fromCache: false };
+  } catch (err) {
+    // Offline / blocked network: fall back to the synthetic demo constellation
+    // (NOT written to cache, so the next online boot fetches real data)
+    console.warn(
+      `[telemetry-ingestion] CelesTrak unreachable for "${group}", using demo catalog:`,
+      err,
+    );
+    return { group, records: buildDemoCatalog(), fromCache: false, demo: true };
+  }
 }
 
 async function revalidateInBackground(

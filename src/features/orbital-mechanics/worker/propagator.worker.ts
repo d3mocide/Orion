@@ -46,8 +46,26 @@ const propagatorImpl: PropagatorAPI = {
 
   async getMetadata(noradId: string): Promise<SatelliteMetadata | null> {
     const wasm = await getWasm();
-    const meta = wasm.get_metadata(noradId) as SatelliteMetadata | null;
-    return meta ?? null;
+    // serde produces snake_case keys — map to the camelCase TS interface
+    const raw = wasm.get_metadata(noradId) as {
+      norad_id: string;
+      name: string;
+      object_id: string;
+      epoch: string;
+      inclination_deg: number;
+      eccentricity: number;
+      mean_motion_rev_per_day: number;
+    } | null;
+    if (!raw) return null;
+    return {
+      noradId: raw.norad_id,
+      name: raw.name,
+      objectId: raw.object_id,
+      epoch: raw.epoch,
+      inclinationDeg: raw.inclination_deg,
+      eccentricity: raw.eccentricity,
+      meanMotionRevPerDay: raw.mean_motion_rev_per_day,
+    };
   },
 
   async getCatalogSize(): Promise<number> {

@@ -1,14 +1,10 @@
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  --space-bg: #0a0e1a;
-  --space-surface: #0f1629;
-  --space-border: #1e2d4a;
-  --space-accent: #00d4ff;
-  --panel-blur: 12px;
-}
 
 html,
 body,
@@ -18,16 +14,54 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: #030304;
+  font-family: "Space Grotesk Variable", system-ui, sans-serif;
 }
 
-/* Cesium canvas must fill its container */
-.cesium-widget,
-.cesium-widget canvas {
-  width: 100% !important;
-  height: 100% !important;
+/* ── Spectral-black glass surfaces ─────────────────────────────────────── */
+.glass-panel {
+  background: linear-gradient(165deg, rgba(20, 20, 22, 0.62), rgba(7, 7, 9, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 16px 48px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
 }
 
-/* Suppress default Cesium credit overlay — we render it ourselves */
-.cesium-credit-container {
-  display: none !important;
+@layer components {
+  /* Section heading inside panels */
+  .panel-heading {
+    @apply mb-2 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500;
+  }
+
+  /* Neutral interactive chip / small button */
+  .chip {
+    @apply rounded-md border border-white/10 bg-white/[0.04] text-zinc-400 transition-colors hover:border-white/25 hover:text-zinc-200;
+  }
+  .chip-active {
+    @apply border-white/35 bg-white/10 text-zinc-100;
+  }
+
+  /* Form input */
+  .field {
+    @apply w-full rounded-md border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-200 placeholder-zinc-600 outline-none transition-colors focus:border-white/35;
+  }
+}
+
+/* Slim, neutral scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }

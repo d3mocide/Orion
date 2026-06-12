@@ -141,13 +141,10 @@ pub fn propagate_at_jd(jd_utc: f64) -> js_sys::Float64Array {
             // On error: leave as 0,0,0 — renderer will skip zero-magnitude entries
         }
 
-        // SAFETY: Float64Array::view borrows buf — we copy immediately via slice().
-        let view = unsafe { js_sys::Float64Array::view(&buf) };
-        js_sys::Float64Array::new(
-            &view
-                .buffer()
-                .slice_with_end(view.byte_offset(), view.byte_offset() + (n as u32) * 3 * 8),
-        )
+        // Safe copy into a JS-owned array. The previous view()+slice() approach
+        // threw on zero-length buffers, leaking the RefCell borrow guard
+        // (JS exceptions skip Rust destructors) and poisoning the catalog.
+        js_sys::Float64Array::from(&buf[..])
     })
 }
 
@@ -165,7 +162,7 @@ pub fn propagate_range(
     CATALOG.with(|catalog| {
         let catalog = catalog.borrow();
         let Some(sat) = catalog.iter().find(|s| s.norad_id == norad_id) else {
-            return js_sys::Float64Array::new(&js_sys::ArrayBuffer::new(0));
+            return js_sys::Float64Array::new_with_length(0);
         };
 
         let num_steps = (((jd_end - jd_start) * 86400.0) / step_sec).floor() as usize + 1;
@@ -181,12 +178,7 @@ pub fn propagate_range(
             }
         }
 
-        let view = unsafe { js_sys::Float64Array::view(&buf) };
-        js_sys::Float64Array::new(
-            &view
-                .buffer()
-                .slice_with_end(view.byte_offset(), view.byte_offset() + (num_steps as u32) * 3 * 8),
-        )
+        js_sys::Float64Array::from(&buf[..])
     })
 }
 

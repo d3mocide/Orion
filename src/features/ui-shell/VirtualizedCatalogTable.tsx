@@ -31,23 +31,20 @@ export function VirtualizedCatalogTable({ rows }: VirtualizedCatalogTableProps) 
   if (!open) return null;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-48 z-20 backdrop-blur-md bg-slate-900/80 border-t border-slate-700/50">
-      {/* Title bar */}
-      <div className="flex items-center px-4 h-8 border-b border-slate-700/50">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-          Catalog ({rows.length.toLocaleString()} objects)
+    <div className="glass-panel absolute bottom-14 left-3 right-3 z-20 h-52 overflow-hidden rounded-lg">
+      <div className="flex h-8 items-center border-b border-white/[0.07] px-4">
+        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+          Catalog · {rows.length.toLocaleString()} objects
         </span>
       </div>
 
-      {/* Column header */}
-      <div className="grid grid-cols-[80px_1fr_90px] text-[10px] text-slate-500 px-4 py-1 border-b border-slate-800">
-        <span>NORAD ID</span>
+      <div className="grid grid-cols-[90px_1fr_90px] border-b border-white/[0.04] px-4 py-1 text-[10px] uppercase tracking-wider text-zinc-600">
+        <span>NORAD</span>
         <span>Name</span>
         <span>Epoch</span>
       </div>
 
-      {/* Virtualized rows — 192px total − 32px title − 24px col header = 136px */}
-      <div ref={parentRef} className="overflow-y-auto" style={{ height: 136 }}>
+      <div ref={parentRef} className="overflow-y-auto" style={{ height: 148 }}>
         <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
           {rowVirtualizer.getVirtualItems().map((vItem) => {
             const row = rows[vItem.index];
@@ -66,15 +63,15 @@ export function VirtualizedCatalogTable({ rows }: VirtualizedCatalogTableProps) 
                   height: `${vItem.size}px`,
                   transform: `translateY(${vItem.start}px)`,
                 }}
-                className={`grid grid-cols-[80px_1fr_90px] px-4 items-center cursor-pointer text-[10px] ${
+                className={`grid cursor-pointer grid-cols-[90px_1fr_90px] items-center px-4 text-[10px] transition-colors ${
                   isSelected
-                    ? "bg-space-accent/10 text-space-accent"
-                    : "hover:bg-slate-700/30 text-slate-300"
+                    ? "bg-white/[0.09] text-zinc-100"
+                    : "text-zinc-400 hover:bg-white/[0.04]"
                 }`}
               >
                 <span className="font-mono">{row.noradId}</span>
                 <span className="truncate pr-2">{row.name}</span>
-                <span className="text-slate-500">{row.epoch.slice(0, 10)}</span>
+                <span className="font-mono text-zinc-600">{row.epoch.slice(0, 10)}</span>
               </div>
             );
           })}

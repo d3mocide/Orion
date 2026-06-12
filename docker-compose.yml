@@ -1,7 +1,6 @@
 services:
-  app:
+  orion:
     build: .
     ports:
       - "8080:8080"
-    environment:
-      - VITE_CESIUM_ION_TOKEN=${VITE_CESIUM_ION_TOKEN:-}
+    restart: unless-stopped
