@@ -21,7 +21,14 @@ import {
   semiMajorAxisKm,
 } from "@/shared/utils/astro";
 import { OrionSceneManager } from "./sceneManager";
-import { updatePointPositions, pickSatellite, getSlotIndex, getEciAtIndex } from "./satPoints";
+import {
+  updatePointPositions,
+  pickSatellite,
+  getSlotIndex,
+  getSlotRegime,
+  getEciAtIndex,
+} from "./satPoints";
+import { REGIME_COLORS_CSS } from "./constants";
 
 interface OrionSceneProps {
   propagator: PropagatorAPI | null;
@@ -287,7 +294,11 @@ export function OrionScene({ propagator }: OrionSceneProps) {
 
       void prop.propagateRange(selectedId, jdStart, jdEnd, stepSec).then((buf) => {
         if (cancelled) return;
-        manager.orbitTrack.setTrack(new Float64Array(buf));
+        const regime = getSlotRegime(selectedId);
+        manager.orbitTrack.setTrack(
+          new Float64Array(buf),
+          regime ? REGIME_COLORS_CSS[regime] : undefined,
+        );
       });
     });
 

@@ -80,8 +80,9 @@ function makeLabelSprite(text: string, color: string): THREE.Sprite {
 }
 
 export interface OrbitTrackHandle {
-  /** Replace the track with a new ECI sample buffer (km); null clears it */
-  setTrack: (positions: Float64Array | null) => void;
+  /** Replace the track with a new ECI sample buffer (km); null clears it.
+   *  colorCss tints the line (defaults to neutral grey). */
+  setTrack: (positions: Float64Array | null, colorCss?: string) => void;
   /** Move the selection marker to an ECI position (km); null hides it */
   setMarker: (eciKm: { x: number; y: number; z: number } | null) => void;
   /** Per-frame pulse animation + camera-distance scaling */
@@ -132,8 +133,9 @@ export function createOrbitTrack(scene: THREE.Scene): OrbitTrackHandle {
   };
 
   return {
-    setTrack(positions) {
+    setTrack(positions, colorCss) {
       disposeApsides();
+      (material.uniforms.uColor.value as THREE.Color).set(colorCss ?? "#d4d4d8");
       if (!positions || positions.length < 6) {
         line.visible = false;
         return;

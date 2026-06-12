@@ -209,6 +209,11 @@ export function getSlotIndex(noradId: string): number {
   return noradIds.indexOf(noradId);
 }
 
+export function getSlotRegime(noradId: string): OrbitRegime | null {
+  const idx = noradIds.indexOf(noradId);
+  return idx >= 0 ? slotRegimes[idx] : null;
+}
+
 export function isSlotVisible(idx: number): boolean {
   return visibleFlags[idx] === 1;
 }
