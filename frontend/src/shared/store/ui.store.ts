@@ -3,6 +3,13 @@ import type { OMMGroup } from "@/shared/types/omm";
 
 export type SimSpeed = 1 | 10 | 60 | 600;
 export type DataSource = "live" | "cache" | "demo" | "loading";
+export type PanelId = "sidebar" | "catalog" | "detail";
+
+/** On phones the globe is the hero — panels start closed and open one at a time. */
+const isDesktopViewport = () =>
+  typeof window === "undefined" ||
+  typeof window.matchMedia !== "function" ||
+  window.matchMedia("(min-width: 768px)").matches;
 
 interface UIState {
   sidebarOpen: boolean;
@@ -21,6 +28,8 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
   setDetailPanelOpen: (open: boolean) => void;
   setCatalogDrawerOpen: (open: boolean) => void;
+  /** Open one panel and close the others (mobile bottom-sheet behavior). */
+  openExclusivePanel: (panel: PanelId | null) => void;
   setFps: (fps: number) => void;
   setCatalogSize: (n: number) => void;
   setSimTimeJd: (jd: number) => void;
@@ -30,7 +39,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  sidebarOpen: true,
+  sidebarOpen: isDesktopViewport(),
   detailPanelOpen: false,
   catalogDrawerOpen: false,
   fps: 0,
@@ -46,6 +55,12 @@ export const useUIStore = create<UIState>((set) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setDetailPanelOpen: (open) => set({ detailPanelOpen: open }),
   setCatalogDrawerOpen: (open) => set({ catalogDrawerOpen: open }),
+  openExclusivePanel: (panel) =>
+    set({
+      sidebarOpen: panel === "sidebar",
+      catalogDrawerOpen: panel === "catalog",
+      detailPanelOpen: panel === "detail",
+    }),
   setFps: (fps) => set({ fps }),
   setCatalogSize: (catalogSize) => set({ catalogSize }),
   setSimTimeJd: (simTimeJd) => set({ simTimeJd }),

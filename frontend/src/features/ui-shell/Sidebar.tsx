@@ -166,7 +166,7 @@ export function Sidebar() {
   if (!open) return null;
 
   return (
-    <aside className="glass-panel absolute bottom-14 left-3 top-16 z-20 w-72 overflow-y-auto rounded-lg p-4">
+    <aside className="glass-panel pointer-events-auto z-20 overflow-y-auto rounded-lg p-4 max-md:max-h-[52dvh] max-md:w-full max-md:self-end md:w-72">
       <div className="space-y-6">
         <div>
           <p className="panel-heading">Constellation</p>

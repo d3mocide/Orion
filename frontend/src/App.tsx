@@ -14,9 +14,11 @@ import { OrionScene } from "@/features/spatial-rendering/three/OrionScene";
 import { TopBar } from "@/features/ui-shell/TopBar";
 import { Sidebar } from "@/features/ui-shell/Sidebar";
 import { StatusBar } from "@/features/ui-shell/StatusBar";
+import { MobileNav } from "@/features/ui-shell/MobileNav";
 import { SatelliteDetailPanel } from "@/features/ui-shell/SatelliteDetailPanel";
 import { VirtualizedCatalogTable } from "@/features/ui-shell/VirtualizedCatalogTable";
 import { useUIStore } from "@/shared/store/ui.store";
+import { useIsMobile } from "@/shared/hooks/useMediaQuery";
 import { useSelectionStore } from "@/shared/store/selection.store";
 import { useFiltersStore } from "@/shared/store/filters.store";
 import type { OMMRecord } from "@/shared/types/omm";
@@ -44,14 +46,21 @@ function App() {
   const group = useUIStore((s) => s.group);
   const setCatalogSize = useUIStore((s) => s.setCatalogSize);
   const setDetailPanelOpen = useUIStore((s) => s.setDetailPanelOpen);
+  const openExclusivePanel = useUIStore((s) => s.openExclusivePanel);
   const setDataSource = useUIStore((s) => s.setDataSource);
   const setUcsLoaded = useUIStore((s) => s.setUcsLoaded);
   const selectedId = useSelectionStore((s) => s.selectedNoradId);
+  const isMobile = useIsMobile();
 
-  // Open detail panel when a satellite is selected
+  // Open detail panel when a satellite is selected. On phones only one
+  // bottom sheet fits at a time, so selection swaps the open panel.
   useEffect(() => {
-    setDetailPanelOpen(selectedId !== null);
-  }, [selectedId, setDetailPanelOpen]);
+    if (selectedId && isMobile) {
+      openExclusivePanel("detail");
+    } else {
+      setDetailPanelOpen(selectedId !== null);
+    }
+  }, [selectedId, isMobile, setDetailPanelOpen, openExclusivePanel]);
 
   // Fetch propagator metadata when selection changes
   useEffect(() => {
@@ -134,19 +143,38 @@ function App() {
   return (
     <div className="bg-void relative h-full w-full overflow-hidden">
       <OrionScene propagator={propagator} />
-      <TopBar
-        searchRows={catalogRows.map((r) => ({ noradId: r.NORAD_CAT_ID, name: r.OBJECT_NAME }))}
-      />
-      <Sidebar />
-      <SatelliteDetailPanel meta={selectedMeta} propagator={propagator} />
-      <VirtualizedCatalogTable
-        rows={catalogRows.map((r) => ({
-          noradId: r.NORAD_CAT_ID,
-          name: r.OBJECT_NAME,
-          epoch: r.EPOCH,
-        }))}
-      />
-      <StatusBar />
+
+      {/* UI shell: a non-interactive flex column over the globe. Rows own
+          their space (top bar / panels / drawer / status), so panels can
+          never overlap each other regardless of viewport size. */}
+      <div
+        className="pointer-events-none absolute inset-0 z-10 flex flex-col gap-2 p-2 sm:gap-3 sm:p-3"
+        style={{
+          paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+          paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+        }}
+      >
+        <TopBar
+          searchRows={catalogRows.map((r) => ({ noradId: r.NORAD_CAT_ID, name: r.OBJECT_NAME }))}
+        />
+
+        {/* Main row: sidebar | globe (spacer) | detail panel */}
+        <div className="flex min-h-0 flex-1 items-stretch gap-3">
+          <Sidebar />
+          <div className="min-w-0 flex-1" />
+          <SatelliteDetailPanel meta={selectedMeta} propagator={propagator} />
+        </div>
+
+        <VirtualizedCatalogTable
+          rows={catalogRows.map((r) => ({
+            noradId: r.NORAD_CAT_ID,
+            name: r.OBJECT_NAME,
+            epoch: r.EPOCH,
+          }))}
+        />
+        <StatusBar />
+        <MobileNav />
+      </div>
     </div>
   );
 }

@@ -43,8 +43,15 @@ export function StatusBar() {
   const ageStale = ageMs !== null && ageMs > 6 * 60 * 60 * 1000;
 
   return (
-    <footer className="pointer-events-none absolute bottom-3 left-3 z-30">
-      <div className="glass-panel pointer-events-auto flex items-center gap-3 rounded-lg px-3 py-1.5 font-mono text-[11px]">
+    <footer className="pointer-events-none z-30 hidden self-start md:block">
+      <div
+        className="glass-panel pointer-events-auto flex items-center gap-3 rounded-lg px-3 py-1.5 font-mono text-[11px]"
+        title={
+          dataSource === "demo"
+            ? "CelesTrak was unreachable — showing a synthetic demo constellation. Check the /api/celestrak proxy on the server."
+            : undefined
+        }
+      >
         <span
           className={
             fps >= 50 ? "text-zinc-300" : fps >= 30 ? "text-signal-warn" : "text-signal-neg"

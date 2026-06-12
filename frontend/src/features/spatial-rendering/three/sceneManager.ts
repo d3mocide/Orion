@@ -24,7 +24,16 @@ import { KM_TO_UNITS, EARTH_RADIUS_UNITS, MOON_RADIUS_UNITS } from "./constants"
 import { createEarth, type EarthHandle } from "./earth";
 import { createStarfield, type StarfieldHandle } from "./starfield";
 import { createOrbitTrack, type OrbitTrackHandle } from "./orbitTrack";
-import { initSatPoints, disposeSatPoints } from "./satPoints";
+import { initSatPoints, disposeSatPoints, setPointsPixelRatio } from "./satPoints";
+
+/* Depth-precision matters here: with near=0.05/far=6000 the 24-bit depth
+ * buffer loses enough resolution at the Earth limb that satellites and the
+ * surface z-fight (GPU-dependent flicker). Near is as large as the closest
+ * zoom allows; far just clears the nebula dome (R≈2990) at max camera range. */
+const CAMERA_NEAR = 0.2;
+const CAMERA_FAR = 4200;
+
+const clampedDpr = () => Math.min(window.devicePixelRatio || 1, 2);
 
 function makeGlowTexture(inner: string, outer: string): THREE.Texture {
   const size = 256;
@@ -60,6 +69,8 @@ export class OrionSceneManager {
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
   private sunDirWorld = new THREE.Vector3(1, 0, 0);
+  private dprQuery: MediaQueryList | null = null;
+  private onDprChange = () => this.handleResize();
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -70,7 +81,7 @@ export class OrionSceneManager {
       antialias: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(clampedDpr());
     this.renderer.setSize(width, height);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -79,7 +90,7 @@ export class OrionSceneManager {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color("#01020a");
 
-    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.05, 6000);
+    this.camera = new THREE.PerspectiveCamera(45, width / height, CAMERA_NEAR, CAMERA_FAR);
     this.camera.up.set(0, 0, 1); // z-up ECI
     this.camera.position.set(-16, -22, 11);
     this.camera.lookAt(0, 0, 0);
@@ -135,17 +146,40 @@ export class OrionSceneManager {
     // Selected-satellite orbit track + pulsing marker
     this.orbitTrack = createOrbitTrack(this.scene);
 
-    // Post-processing: bloom gives satellites / city lights / atmosphere their glow
-    this.composer = new EffectComposer(this.renderer);
+    // Post-processing: bloom gives satellites / city lights / atmosphere their
+    // glow. The composer bypasses the canvas's built-in MSAA, so render into a
+    // multisampled target — otherwise the point cloud shimmers as satellites
+    // cross pixel boundaries.
+    const composerTarget = new THREE.WebGLRenderTarget(
+      width * this.renderer.getPixelRatio(),
+      height * this.renderer.getPixelRatio(),
+      { type: THREE.HalfFloatType, samples: 4 },
+    );
+    this.composer = new EffectComposer(this.renderer, composerTarget);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     const bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 0.45, 0.55, 0.8);
     this.composer.addPass(bloom);
     this.composer.addPass(new OutputPass());
 
     initSatPoints(this.scene);
+    setPointsPixelRatio(this.renderer.getPixelRatio());
 
     this.resizeObserver = new ResizeObserver(() => this.handleResize());
     this.resizeObserver.observe(container);
+    this.watchDpr();
+  }
+
+  /**
+   * Re-arm a one-shot matchMedia listener for the *current* devicePixelRatio.
+   * Browser zoom and moving the window to a differently-scaled monitor change
+   * the DPR without necessarily resizing the container; a stale pixel ratio
+   * leaves the canvas backing store mismatched with the compositor, which
+   * shows up as blur or flicker at particular zoom levels / resolutions.
+   */
+  private watchDpr(): void {
+    this.dprQuery?.removeEventListener("change", this.onDprChange);
+    this.dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    this.dprQuery.addEventListener("change", this.onDprChange);
   }
 
   private buildObserverMarker(): THREE.Group {
@@ -181,10 +215,15 @@ export class OrionSceneManager {
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     if (width === 0 || height === 0) return;
+    const dpr = clampedDpr();
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(width, height);
+    this.composer.setPixelRatio(dpr);
     this.composer.setSize(width, height);
+    setPointsPixelRatio(dpr);
+    this.watchDpr();
   }
 
   /** Per-frame update. jdUtc drives all astronomy; elapsed drives ambience. */
@@ -212,6 +251,7 @@ export class OrionSceneManager {
   }
 
   dispose(): void {
+    this.dprQuery?.removeEventListener("change", this.onDprChange);
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.orbitTrack.dispose();
