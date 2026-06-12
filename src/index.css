@@ -6,14 +6,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --void: #01020a;
-  --aurora-teal: #2dd4bf;
-  --aurora-violet: #a78bfa;
-  --aurora-magenta: #f472b6;
-  --aurora-amber: #fbbf24;
-}
-
 html,
 body,
 #root {
@@ -22,36 +14,52 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--void);
+  background: #030304;
   font-family: "Space Grotesk Variable", system-ui, sans-serif;
 }
 
+/* ── Spectral-black glass surfaces ─────────────────────────────────────── */
+.glass-panel {
+  background: linear-gradient(165deg, rgba(20, 20, 22, 0.62), rgba(7, 7, 9, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 16px 48px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+}
+
 @layer components {
-  /* Frosted glass surface used by every floating panel */
-  .glass-panel {
-    @apply border border-white/10 bg-slate-950/60 shadow-[0_8px_32px_rgba(1,2,10,0.6)] backdrop-blur-xl;
+  /* Section heading inside panels */
+  .panel-heading {
+    @apply mb-2 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500;
   }
 
-  /* Aurora gradient text for the wordmark and accents */
-  .aurora-text {
-    background: linear-gradient(100deg, #2dd4bf 0%, #a78bfa 55%, #f472b6 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  /* Neutral interactive chip / small button */
+  .chip {
+    @apply rounded-md border border-white/10 bg-white/[0.04] text-zinc-400 transition-colors hover:border-white/25 hover:text-zinc-200;
+  }
+  .chip-active {
+    @apply border-white/35 bg-white/10 text-zinc-100;
+  }
+
+  /* Form input */
+  .field {
+    @apply w-full rounded-md border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-200 placeholder-zinc-600 outline-none transition-colors focus:border-white/35;
   }
 }
 
-/* Slim, dark scrollbars everywhere */
+/* Slim, neutral scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(167, 139, 250, 0.35) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(167, 139, 250, 0.35);
+  background: rgba(255, 255, 255, 0.16);
   border-radius: 3px;
 }
 *::-webkit-scrollbar-track {

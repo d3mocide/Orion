@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useUIStore, type SimSpeed } from "@/shared/store/ui.store";
 import { useSelectionStore } from "@/shared/store/selection.store";
-import { jdToIso, nowJd } from "@/shared/utils/time";
+import { jdToIso, jdToDate, dateToJd, nowJd } from "@/shared/utils/time";
 
 const SPEEDS: SimSpeed[] = [1, 10, 60, 600];
 
@@ -40,10 +40,10 @@ function SearchBox({ rows }: { rows: SearchRow[] }) {
         onFocus={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 150)}
         placeholder="Search satellites…"
-        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none transition-colors focus:border-aurora-teal/60"
+        className="field py-1.5 text-xs"
       />
       {focused && matches.length > 0 && (
-        <div className="glass-panel absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg">
+        <div className="glass-panel absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md">
           {matches.map((m) => (
             <button
               key={m.noradId}
@@ -51,16 +51,58 @@ function SearchBox({ rows }: { rows: SearchRow[] }) {
                 select(m.noradId);
                 setQuery("");
               }}
-              className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-slate-300 transition-colors hover:bg-aurora-teal/10"
+              className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-zinc-300 transition-colors hover:bg-white/[0.07]"
             >
               <span className="truncate">{m.name}</span>
-              <span className="ml-2 shrink-0 font-mono text-[10px] text-aurora-violet">
+              <span
+                data-testid="search-result-id"
+                className="ml-2 shrink-0 font-mono text-[10px] text-zinc-500"
+              >
                 {m.noradId}
               </span>
             </button>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Set the simulation clock to an explicit UTC date/time */
+function TimeSetter({ onClose }: { onClose: () => void }) {
+  const simTimeJd = useUIStore((s) => s.simTimeJd);
+  const setSimTimeJd = useUIStore((s) => s.setSimTimeJd);
+  const [value, setValue] = useState(jdToIso(simTimeJd).slice(0, 19));
+
+  const apply = () => {
+    const ms = Date.parse(value.endsWith("Z") ? value : value + "Z");
+    if (!isNaN(ms)) {
+      setSimTimeJd(dateToJd(ms));
+      onClose();
+    }
+  };
+
+  return (
+    <div className="glass-panel absolute right-0 top-full z-50 mt-1 w-64 rounded-md p-3">
+      <p className="panel-heading">Set Date &amp; Time (UTC)</p>
+      <input
+        className="field mb-2"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && apply()}
+        placeholder="YYYY-MM-DDTHH:MM:SS"
+      />
+      <div className="mb-2 font-mono text-[10px] text-zinc-600">
+        Unix epoch: {Math.floor(jdToDate(simTimeJd).getTime() / 1000)}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={apply} className="chip chip-active flex-1 px-2 py-1 text-[11px]">
+          Apply
+        </button>
+        <button onClick={onClose} className="chip flex-1 px-2 py-1 text-[11px]">
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
@@ -76,20 +118,24 @@ export function TopBar({ searchRows }: TopBarProps) {
   const setSimTimeJd = useUIStore((s) => s.setSimTimeJd);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const setCatalogDrawerOpen = useUIStore((s) => s.setCatalogDrawerOpen);
+  const [timeSetterOpen, setTimeSetterOpen] = useState(false);
 
   return (
-    <header className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-start gap-3 p-3">
-      <div className="glass-panel pointer-events-auto flex items-center gap-4 rounded-xl px-4 py-2">
-        <span className="aurora-text select-none text-base font-bold tracking-[0.3em]">ORION</span>
+    <header className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-start gap-2 p-3">
+      <div className="glass-panel pointer-events-auto flex items-center gap-4 rounded-lg px-4 py-2">
+        <span className="select-none text-sm font-semibold tracking-[0.32em] text-zinc-100">
+          ORION
+        </span>
+        <div className="h-4 w-px bg-white/10" />
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`text-xs transition-colors ${sidebarOpen ? "text-aurora-teal" : "text-slate-400 hover:text-slate-200"}`}
+          className={`text-xs transition-colors ${sidebarOpen ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
         >
           Mission
         </button>
         <button
           onClick={() => setCatalogDrawerOpen(!catalogDrawerOpen)}
-          className={`text-xs transition-colors ${catalogDrawerOpen ? "text-aurora-teal" : "text-slate-400 hover:text-slate-200"}`}
+          className={`text-xs transition-colors ${catalogDrawerOpen ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
         >
           Catalog
         </button>
@@ -98,15 +144,20 @@ export function TopBar({ searchRows }: TopBarProps) {
 
       <div className="flex-1" />
 
-      <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-xl px-3 py-2">
-        <span className="font-mono text-xs text-slate-300" data-testid="sim-clock">
+      <div className="glass-panel pointer-events-auto relative flex items-center gap-2 rounded-lg px-3 py-2">
+        <button
+          onClick={() => setTimeSetterOpen(!timeSetterOpen)}
+          title="Set date & time"
+          className="font-mono text-xs text-zinc-300 transition-colors hover:text-zinc-100"
+          data-testid="sim-clock"
+        >
           {jdToIso(simTimeJd).replace("T", " ").slice(0, 19)} UTC
-        </span>
+        </button>
         <div className="h-4 w-px bg-white/10" />
         <button
           onClick={toggleSimPaused}
           title={simPaused ? "Resume" : "Pause"}
-          className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-200 transition-colors hover:border-aurora-teal/60"
+          className="chip px-2 py-0.5 text-xs text-zinc-200"
         >
           {simPaused ? "▶" : "⏸"}
         </button>
@@ -114,11 +165,7 @@ export function TopBar({ searchRows }: TopBarProps) {
           <button
             key={s}
             onClick={() => setSimSpeed(s)}
-            className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${
-              simSpeed === s
-                ? "border-aurora-violet/70 bg-aurora-violet/15 text-aurora-violet"
-                : "border-white/10 bg-white/5 text-slate-400 hover:border-white/30"
-            }`}
+            className={`px-2 py-0.5 text-xs ${simSpeed === s ? "chip chip-active" : "chip"}`}
           >
             ×{s}
           </button>
@@ -126,10 +173,11 @@ export function TopBar({ searchRows }: TopBarProps) {
         <button
           onClick={() => setSimTimeJd(nowJd())}
           title="Jump to real time"
-          className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-400 transition-colors hover:border-aurora-teal/60 hover:text-aurora-teal"
+          className="chip px-2 py-0.5 text-xs"
         >
           NOW
         </button>
+        {timeSetterOpen && <TimeSetter onClose={() => setTimeSetterOpen(false)} />}
       </div>
     </header>
   );

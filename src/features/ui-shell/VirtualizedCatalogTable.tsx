@@ -31,14 +31,14 @@ export function VirtualizedCatalogTable({ rows }: VirtualizedCatalogTableProps) 
   if (!open) return null;
 
   return (
-    <div className="glass-panel absolute bottom-14 left-3 right-3 z-20 h-52 overflow-hidden rounded-xl">
-      <div className="flex h-8 items-center border-b border-white/10 px-4">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+    <div className="glass-panel absolute bottom-14 left-3 right-3 z-20 h-52 overflow-hidden rounded-lg">
+      <div className="flex h-8 items-center border-b border-white/[0.07] px-4">
+        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
           Catalog · {rows.length.toLocaleString()} objects
         </span>
       </div>
 
-      <div className="grid grid-cols-[90px_1fr_90px] border-b border-white/5 px-4 py-1 text-[10px] uppercase tracking-wider text-slate-600">
+      <div className="grid grid-cols-[90px_1fr_90px] border-b border-white/[0.04] px-4 py-1 text-[10px] uppercase tracking-wider text-zinc-600">
         <span>NORAD</span>
         <span>Name</span>
         <span>Epoch</span>
@@ -65,13 +65,13 @@ export function VirtualizedCatalogTable({ rows }: VirtualizedCatalogTableProps) 
                 }}
                 className={`grid cursor-pointer grid-cols-[90px_1fr_90px] items-center px-4 text-[10px] transition-colors ${
                   isSelected
-                    ? "bg-aurora-teal/10 text-aurora-teal"
-                    : "text-slate-300 hover:bg-white/5"
+                    ? "bg-white/[0.09] text-zinc-100"
+                    : "text-zinc-400 hover:bg-white/[0.04]"
                 }`}
               >
                 <span className="font-mono">{row.noradId}</span>
                 <span className="truncate pr-2">{row.name}</span>
-                <span className="font-mono text-slate-500">{row.epoch.slice(0, 10)}</span>
+                <span className="font-mono text-zinc-600">{row.epoch.slice(0, 10)}</span>
               </div>
             );
           })}

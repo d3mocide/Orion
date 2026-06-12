@@ -44,9 +44,12 @@ When CelesTrak is unreachable (offline demo, air-gapped network), Orion synthesi
 - **Live catalog** — CelesTrak OMM JSON (active, Starlink, OneWeb, GPS, GEO, Iridium NEXT, recent launches), cached in IndexedDB with a 2-hour stale-while-revalidate window
 - **10k-object 3D view** — one `THREE.Points` draw call, custom glow shader, colored by orbit regime (LEO teal · MEO violet · GEO magenta · HEO amber), UnrealBloom post-processing
 - **High-fidelity Earth** — day/night blend shader with city lights, specular oceans, drifting clouds, aurora-tinted atmosphere; sun and moon placed by real ephemerides; the terminator is where it actually is right now
-- **Pass prediction** — set your ground station (manual lat/lon or browser GPS) and get AOS/LOS times, max elevation, azimuths, and closest range for the next 24 h
-- **RF frequencies** — SatNOGS DB transmitter records (downlink/uplink, mode, baud, status) per satellite, cached 24 h
-- **Time machine** — pause, ×1/×10/×60/×600 simulation speed, jump back to now
+- **Pass prediction** — set your ground station (manual lat/lon or browser GPS) and get AOS/LOS times, max elevation, azimuths, and closest range for the next 24 h, with a live progress bar during a pass
+- **Polar tracking plot** — azimuth/elevation sky chart of the selected pass with AOS/LOS endpoints and a live position dot
+- **Doppler shift analysis** — per-pass Doppler curve for any carrier frequency (seeded from SatNOGS downlinks), derived from real range-rate, with CSV export for rig control
+- **Apsis markers** — apogee/perigee diamonds with altitude labels rendered on the selected orbit
+- **RF frequencies** — SatNOGS DB transmitter records (downlink/uplink, mode, baud, status) per satellite, cached 24 h; click a downlink to feed the Doppler analyzer
+- **Time machine** — pause, ×1/×10/×60/×600 simulation speed, jump to now, or set an explicit UTC date/time
 - **Search + catalog table** — instant name/NORAD lookup, virtualized 10k-row table
 - **UCS enrichment** *(optional)* — operator/country/purpose facets when the UCS Satellite Database CSV is loaded
 
@@ -116,6 +119,19 @@ The multi-stage build compiles the Rust/WASM engine, bundles the frontend, and s
 3. Select any satellite — the detail panel now shows live azimuth/elevation/range and the next passes over your horizon
 
 Pass math: ECI sample buffers from the WASM propagator are rotated to ECEF via GMST, converted to topocentric ENU look angles, and scanned for horizon crossings with linear AOS/LOS refinement (a few seconds of accuracy at 30 s steps — fine for VHF/UHF work).
+
+### Accuracy notes
+
+| Quantity | Method | Error budget |
+|---|---|---|
+| Propagation | `sgp4` crate (verified against reference test vectors) | standard SGP4 (~1 km at epoch, grows with element age) |
+| ECI→ECEF | GMST rotation | < 100 m vs full IAU2006 at display scales |
+| Observer | WGS84 ellipsoid, geodetic | exact ellipsoid math |
+| Velocity readout | vis-viva from mean motion | exact for two-body motion |
+| Doppler | central-difference range rate | sub-Hz vs analytic at 2–5 s steps |
+| Sub-satellite point | geodetic correction tan φ/(1−e²) | < 0.01° |
+| Eclipse flag | cylindrical umbra | penumbra fringe only (~seconds) |
+| Sun / Moon position | low-precision ephemerides | ~0.01° / ~0.5° (visual placement) |
 
 ---
 

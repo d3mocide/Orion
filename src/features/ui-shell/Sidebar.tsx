@@ -23,14 +23,6 @@ const GROUPS: { id: OMMGroup; label: string }[] = [
   { id: "last-30-days", label: "Recent launches" },
 ];
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-      {children}
-    </h3>
-  );
-}
-
 function ChipList({
   items,
   active,
@@ -48,17 +40,15 @@ function ChipList({
           key={item}
           onClick={() => onToggle(item)}
           title={item}
-          className={`max-w-[120px] truncate rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
-            active.has(item)
-              ? "border-aurora-teal/70 bg-aurora-teal/15 text-aurora-teal"
-              : "border-white/10 bg-white/5 text-slate-400 hover:border-white/30"
+          className={`max-w-[120px] truncate rounded-full px-2 py-0.5 text-[10px] ${
+            active.has(item) ? "chip chip-active" : "chip"
           }`}
         >
           {item}
         </button>
       ))}
       {items.length > MAX_CHIPS && (
-        <span className="self-center text-[10px] text-slate-600">
+        <span className="self-center text-[10px] text-zinc-600">
           +{items.length - MAX_CHIPS} more
         </span>
       )}
@@ -100,16 +90,13 @@ function ObserverCard() {
     );
   };
 
-  const inputCls =
-    "w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-[11px] text-slate-200 placeholder-slate-600 outline-none focus:border-aurora-teal/60";
-
   return (
     <div>
-      <SectionTitle>Ground Station</SectionTitle>
+      <p className="panel-heading">Ground Station</p>
       {location && (
-        <p className="mb-2 font-mono text-[11px] text-aurora-teal">
+        <p className="mb-2 font-mono text-[11px] text-zinc-200">
           {location.latDeg.toFixed(3)}°, {location.lonDeg.toFixed(3)}°
-          {label && <span className="ml-1 text-slate-500">({label})</span>}
+          {label && <span className="ml-1 text-zinc-600">({label})</span>}
         </p>
       )}
       <div className="mb-2 grid grid-cols-2 gap-2">
@@ -117,40 +104,38 @@ function ObserverCard() {
           value={lat}
           onChange={(e) => setLat(e.target.value)}
           placeholder="Lat °N"
-          className={inputCls}
+          className="field"
         />
         <input
           value={lon}
           onChange={(e) => setLon(e.target.value)}
           placeholder="Lon °E"
-          className={inputCls}
+          className="field"
         />
       </div>
       <div className="flex gap-2">
-        <button
-          onClick={save}
-          className="flex-1 rounded-md border border-aurora-teal/40 bg-aurora-teal/10 px-2 py-1 text-[11px] text-aurora-teal transition-colors hover:bg-aurora-teal/20"
-        >
+        <button onClick={save} className="chip chip-active flex-1 px-2 py-1 text-[11px]">
           Set
         </button>
         <button
           onClick={locate}
           disabled={busy}
-          className="flex-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-300 transition-colors hover:border-white/30 disabled:opacity-50"
+          className="chip flex-1 px-2 py-1 text-[11px] disabled:opacity-50"
         >
           {busy ? "Locating…" : "Use GPS"}
         </button>
         {location && (
           <button
             onClick={() => setLocation(null)}
-            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:text-slate-300"
+            className="chip px-2 py-1 text-[11px]"
+            aria-label="Clear ground station"
           >
             ✕
           </button>
         )}
       </div>
-      <p className="mt-1.5 text-[10px] leading-snug text-slate-600">
-        Enables pass prediction and live az/el for the selected satellite.
+      <p className="mt-1.5 text-[10px] leading-snug text-zinc-600">
+        Enables pass prediction, polar tracking, and Doppler analysis.
       </p>
     </div>
   );
@@ -181,14 +166,14 @@ export function Sidebar() {
   if (!open) return null;
 
   return (
-    <aside className="glass-panel absolute bottom-16 left-3 top-16 z-20 w-72 overflow-y-auto rounded-xl p-4">
+    <aside className="glass-panel absolute bottom-14 left-3 top-16 z-20 w-72 overflow-y-auto rounded-lg p-4">
       <div className="space-y-6">
         <div>
-          <SectionTitle>Constellation</SectionTitle>
+          <p className="panel-heading">Constellation</p>
           <select
             value={group}
             onChange={(e) => setGroup(e.target.value as OMMGroup)}
-            className="w-full rounded-md border border-white/10 bg-slate-950/80 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-aurora-violet/60"
+            className="field py-1.5 text-xs"
           >
             {GROUPS.map((g) => (
               <option key={g.id} value={g.id}>
@@ -199,16 +184,14 @@ export function Sidebar() {
         </div>
 
         <div>
-          <SectionTitle>Orbit Regime</SectionTitle>
+          <p className="panel-heading">Orbit Regime</p>
           <div className="flex flex-wrap gap-1.5">
             {REGIMES.map((r) => (
               <button
                 key={r}
                 onClick={() => toggleRegime(r)}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
-                  regimes.has(r)
-                    ? "border-white/40 bg-white/10 text-slate-100"
-                    : "border-white/10 bg-white/5 text-slate-400 hover:border-white/30"
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${
+                  regimes.has(r) ? "chip chip-active" : "chip"
                 }`}
               >
                 <span
@@ -219,7 +202,7 @@ export function Sidebar() {
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[10px] text-slate-600">
+          <p className="mt-1.5 text-[10px] text-zinc-600">
             No selection = show everything. Colors match the globe.
           </p>
         </div>
@@ -230,32 +213,32 @@ export function Sidebar() {
           <>
             {opList.length > 0 && (
               <div>
-                <SectionTitle>Operator</SectionTitle>
+                <p className="panel-heading">Operator</p>
                 <ChipList items={opList} active={operators} onToggle={toggleOperator} />
               </div>
             )}
             {ctrList.length > 0 && (
               <div>
-                <SectionTitle>Country</SectionTitle>
+                <p className="panel-heading">Country</p>
                 <ChipList items={ctrList} active={countries} onToggle={toggleCountry} />
               </div>
             )}
             {purpList.length > 0 && (
               <div>
-                <SectionTitle>Purpose</SectionTitle>
+                <p className="panel-heading">Purpose</p>
                 <ChipList items={purpList} active={purposes} onToggle={togglePurpose} />
               </div>
             )}
           </>
         ) : (
-          <p className="text-[10px] italic leading-snug text-slate-600">
+          <p className="text-[10px] italic leading-snug text-zinc-600">
             Load the UCS Satellite Database CSV to unlock operator / country / purpose facets.
           </p>
         )}
 
         <button
           onClick={clearAll}
-          className="w-full py-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+          className="w-full py-1 text-xs text-zinc-600 transition-colors hover:text-zinc-300"
         >
           Clear all filters
         </button>

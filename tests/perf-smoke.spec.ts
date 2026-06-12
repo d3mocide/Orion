@@ -67,11 +67,11 @@ test("search → select shows detail panel with orbital elements", async ({ page
   // Demo catalog names start with DEMO-; live catalogs match plenty on "1"
   await input.fill("DEMO");
   await page.waitForTimeout(600);
-  let options = page.locator("header button span.text-aurora-violet");
+  let options = page.locator('[data-testid="search-result-id"]');
   if ((await options.count()) === 0) {
     await input.fill("25");
     await page.waitForTimeout(600);
-    options = page.locator("header button span.text-aurora-violet");
+    options = page.locator('[data-testid="search-result-id"]');
   }
   expect(await options.count()).toBeGreaterThan(0);
 

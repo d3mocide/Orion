@@ -152,7 +152,7 @@ export class OrionSceneManager {
     const group = new THREE.Group();
     const dot = new THREE.Sprite(
       new THREE.SpriteMaterial({
-        map: makeGlowTexture("rgba(45,212,191,1)", "rgba(45,212,191,0.4)"),
+        map: makeGlowTexture("rgba(244,244,245,1)", "rgba(244,244,245,0.35)"),
         transparent: true,
         depthWrite: false,
       }),

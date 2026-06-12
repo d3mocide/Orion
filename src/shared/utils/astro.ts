@@ -172,3 +172,56 @@ export function moonEci(jdUtc: number): Vec3 {
     z: yEcl * Math.sin(obliquity) + zEcl * Math.cos(obliquity),
   };
 }
+
+export interface SubPoint {
+  latDeg: number;
+  lonDeg: number;
+}
+
+/**
+ * Sub-satellite point (geodetic latitude, east longitude) from an ECI
+ * position. Uses the single-iteration geodetic correction
+ * tan(φ_gd) = tan(φ_gc)/(1−e²) — < 0.01° error at LEO altitudes.
+ */
+export function subPointFromEci(eci: Vec3, jdUtc: number): SubPoint {
+  const ecef = eciToEcef(eci, jdUtc);
+  const lonDeg = ((Math.atan2(ecef.y, ecef.x) / DEG + 540) % 360) - 180;
+  const rXy = Math.hypot(ecef.x, ecef.y);
+  const latGc = Math.atan2(ecef.z, rXy);
+  const latGd = Math.atan(Math.tan(latGc) / (1 - WGS84_E2));
+  return { latDeg: latGd / DEG, lonDeg };
+}
+
+/**
+ * True if the satellite is inside Earth's shadow (cylindrical umbra model).
+ * The cylinder approximation errs only in the penumbra fringe (~seconds of
+ * pass time) — standard for visibility prediction.
+ */
+export function isEclipsed(satEci: Vec3, jdUtc: number): boolean {
+  const sun = sunEci(jdUtc);
+  const sunMag = Math.hypot(sun.x, sun.y, sun.z);
+  const ux = sun.x / sunMag;
+  const uy = sun.y / sunMag;
+  const uz = sun.z / sunMag;
+  // Component of the satellite position along the Sun direction
+  const along = satEci.x * ux + satEci.y * uy + satEci.z * uz;
+  if (along >= 0) return false; // on the day side
+  // Perpendicular distance from the anti-solar axis
+  const px = satEci.x - along * ux;
+  const py = satEci.y - along * uy;
+  const pz = satEci.z - along * uz;
+  return Math.hypot(px, py, pz) < R_EARTH_KM;
+}
+
+/** Orbital speed from the vis-viva equation (exact for two-body motion). */
+export function visVivaSpeedKmS(rKm: number, semiMajorAxisKm: number): number {
+  const MU = 398_600.4418;
+  return Math.sqrt(MU * (2 / rKm - 1 / semiMajorAxisKm));
+}
+
+/** Semi-major axis (km) from mean motion in rev/day. */
+export function semiMajorAxisKm(meanMotionRevPerDay: number): number {
+  const MU = 398_600.4418;
+  const nRadS = (meanMotionRevPerDay * 2 * Math.PI) / 86_400;
+  return Math.cbrt(MU / (nRadS * nRadS));
+}

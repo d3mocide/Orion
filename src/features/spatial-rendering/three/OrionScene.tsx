@@ -13,7 +13,13 @@ import type { PropagatorAPI, SatelliteMetadata } from "@/features/orbital-mechan
 import { useUIStore } from "@/shared/store/ui.store";
 import { useSelectionStore } from "@/shared/store/selection.store";
 import { useObserverStore } from "@/shared/store/observer.store";
-import { lookAnglesFromEci } from "@/shared/utils/astro";
+import {
+  lookAnglesFromEci,
+  subPointFromEci,
+  isEclipsed,
+  visVivaSpeedKmS,
+  semiMajorAxisKm,
+} from "@/shared/utils/astro";
 import { OrionSceneManager } from "./sceneManager";
 import { updatePointPositions, pickSatellite, getSlotIndex, getEciAtIndex } from "./satPoints";
 
@@ -192,9 +198,19 @@ export function OrionScene({ propagator }: OrionSceneProps) {
               const r = Math.sqrt(eci.x * eci.x + eci.y * eci.y + eci.z * eci.z);
               const observer = useObserverStore.getState().location;
               const look = observer ? lookAnglesFromEci(eci, observer, simJd) : null;
+              const sub = subPointFromEci(eci, simJd);
+              // vis-viva (exact for two-body) when elements are cached;
+              // circular approximation as fallback
+              const meta = metaCacheRef.current.get(sel);
+              const velKms = meta
+                ? visVivaSpeedKmS(r, semiMajorAxisKm(meta.meanMotionRevPerDay))
+                : Math.sqrt(MU_KM3_S2 / r);
               useSelectionStore.getState().setLiveStats({
                 altKm: r - R_EARTH_KM,
-                velKms: Math.sqrt(MU_KM3_S2 / r),
+                velKms,
+                latDeg: sub.latDeg,
+                lonDeg: sub.lonDeg,
+                eclipsed: isEclipsed(eci, simJd),
                 azDeg: look?.azDeg ?? null,
                 elDeg: look?.elDeg ?? null,
                 rangeKm: look?.rangeKm ?? null,
@@ -262,6 +278,7 @@ export function OrionScene({ propagator }: OrionSceneProps) {
 
     void prop.getMetadata(selectedId).then((meta) => {
       if (cancelled) return;
+      if (meta) metaCacheRef.current.set(selectedId, meta);
       // Period from mean motion; fall back to 90 min if metadata is missing
       const periodMin = meta ? 1440 / meta.meanMotionRevPerDay : 90;
       const jdStart = useUIStore.getState().simTimeJd;
@@ -285,11 +302,11 @@ export function OrionScene({ propagator }: OrionSceneProps) {
       {tooltip && (
         <div
           style={{ left: tooltip.x + 14, top: tooltip.y - 34 }}
-          className="glass-panel pointer-events-none absolute z-50 rounded-lg px-2.5 py-1.5 text-xs"
+          className="glass-panel pointer-events-none absolute z-50 rounded-md px-2.5 py-1.5 text-xs"
         >
-          <div className="font-mono text-[10px] text-aurora-teal">{tooltip.noradId}</div>
-          <div className="font-medium text-slate-100">{tooltip.name}</div>
-          <div className="mt-0.5 font-mono text-[11px] text-slate-400">
+          <div className="font-mono text-[10px] text-zinc-500">{tooltip.noradId}</div>
+          <div className="font-medium text-zinc-100">{tooltip.name}</div>
+          <div className="mt-0.5 font-mono text-[11px] text-zinc-400">
             {tooltip.altKm.toFixed(0)} km · ~{tooltip.velKms.toFixed(2)} km/s
           </div>
         </div>

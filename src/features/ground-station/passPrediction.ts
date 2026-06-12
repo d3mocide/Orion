@@ -134,3 +134,75 @@ export function dopplerShiftHz(freqHz: number, rangeRateKmS: number): number {
   const C_KM_S = 299_792.458;
   return -freqHz * (rangeRateKmS / C_KM_S);
 }
+
+export interface TrackPoint {
+  jd: number;
+  azDeg: number;
+  elDeg: number;
+  rangeKm: number;
+}
+
+/**
+ * Convert an ECI sample buffer into observer-relative track points
+ * (azimuth/elevation/range per sample). Zero samples are skipped.
+ */
+export function samplesToTrack(
+  samples: PassSearchSamples,
+  observer: GeodeticLocation,
+): TrackPoint[] {
+  const { positions, jdStart, stepSec } = samples;
+  const n = Math.floor(positions.length / 3);
+  const out: TrackPoint[] = [];
+  for (let i = 0; i < n; i++) {
+    const eci = sampleEci(positions, i);
+    if (eci.x === 0 && eci.y === 0 && eci.z === 0) continue;
+    const jd = jdStart + (i * stepSec) / 86_400;
+    const look = lookAnglesFromEci(eci, observer, jd);
+    out.push({ jd, azDeg: look.azDeg, elDeg: look.elDeg, rangeKm: look.rangeKm });
+  }
+  return out;
+}
+
+export interface DopplerPoint {
+  jd: number;
+  /** Range rate, km/s (negative = approaching) */
+  rangeRateKmS: number;
+  /** Doppler shift at the given carrier, Hz */
+  shiftHz: number;
+  /** Observed frequency, Hz */
+  observedHz: number;
+}
+
+/**
+ * Doppler curve for a carrier frequency over a track. Range rate comes from
+ * central differences of slant range — the same quantity a receiver sees —
+ * so light-time and frame subtleties cancel to first order.
+ */
+export function dopplerSeries(track: TrackPoint[], freqHz: number): DopplerPoint[] {
+  const out: DopplerPoint[] = [];
+  for (let i = 0; i < track.length; i++) {
+    const prev = track[Math.max(0, i - 1)];
+    const next = track[Math.min(track.length - 1, i + 1)];
+    const dtSec = (next.jd - prev.jd) * 86_400;
+    if (dtSec <= 0) continue;
+    const rangeRateKmS = (next.rangeKm - prev.rangeKm) / dtSec;
+    const shiftHz = dopplerShiftHz(freqHz, rangeRateKmS);
+    out.push({ jd: track[i].jd, rangeRateKmS, shiftHz, observedHz: freqHz + shiftHz });
+  }
+  return out;
+}
+
+/** Serialize a Doppler series as CSV (UTC ISO timestamps). */
+export function dopplerCsv(track: TrackPoint[], doppler: DopplerPoint[]): string {
+  const lines = ["utc,az_deg,el_deg,range_km,range_rate_km_s,doppler_hz,observed_hz"];
+  const byJd = new Map(doppler.map((d) => [d.jd, d]));
+  for (const p of track) {
+    const d = byJd.get(p.jd);
+    if (!d) continue;
+    const utc = new Date((p.jd - 2_440_587.5) * 86_400_000).toISOString();
+    lines.push(
+      `${utc},${p.azDeg.toFixed(2)},${p.elDeg.toFixed(2)},${p.rangeKm.toFixed(2)},${d.rangeRateKmS.toFixed(4)},${d.shiftHz.toFixed(1)},${d.observedHz.toFixed(1)}`,
+    );
+  }
+  return lines.join("\n");
+}

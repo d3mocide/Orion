@@ -4,6 +4,11 @@ import { create } from "zustand";
 export interface LiveStats {
   altKm: number;
   velKms: number;
+  /** Sub-satellite point */
+  latDeg: number;
+  lonDeg: number;
+  /** Inside Earth's umbra (cylindrical model) */
+  eclipsed: boolean;
   /** Observer-relative; null when no ground station is set */
   azDeg: number | null;
   elDeg: number | null;
